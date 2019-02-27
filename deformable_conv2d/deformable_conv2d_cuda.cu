@@ -1,12 +1,9 @@
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <ATen/cuda/CUDAContext.h>
-#include <cstdio>
-#include <algorithm>
-#include <cstring>
+#include "deformable_conv2d.h"
+// beware that the *cuh can only be referenced in the .cu or .cuh files, I put these two header into the .h file at first and it spend me a lot time to find this bug
+#include <THC/THCAtomics.cuh>
+#include <THC/THCDeviceUtils.cuh>
+typedef std::vector<int> TShape;
 
-#include <vector>
-#include 'deformable_conv2d.h'
 #define CUDA_KERNEL_LOOP(i, n)                          \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x;   \
       i < (n);                                          \
@@ -19,7 +16,6 @@ inline int GET_BLOCKS(const int N)
   return (N + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS;
 }
 
-typedef std::vector<int> TShape;
 namespace{
 template<typename DType>
 __device__ DType dmcn_im2col_bilinear(
@@ -362,10 +358,6 @@ __global__ void setOneKernel(const int n, DType* result_data){
         }
     }
 
-template <typename DType>
-__global__ void setNumAtIndexKernel(DType num, int index, DType* data){
-        *(data + index) = num;
-}
 
 }
 
@@ -375,8 +367,6 @@ void deformable_im2col(cudaStream_t stream,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride, const TShape& dilation,
     const int32_t deformable_group, DType* data_col) {
-        const int channel_per_deformable_group = channels / deformable_group;
-        const int num_kernels = channels * batch_size * height_col * width_col;
         int  num_spatial_axes = kernel_shape.size();
         int  channel_per_deformable_group = im_shape[1] / deformable_group;
         int  num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size());
@@ -481,5 +471,5 @@ void pureAddTo(cudaStream_t stream, const int n, DType* result_data, const DType
 
 template <typename DType>
 void setNumAtIndex(cudaStream_t stream,  DType num, int index, DType* data){
-    setNumAtIndexKernel<DType> <<<GET_BLOCKS(n), CUDA_NUM_THREADS, 0, stream >>>(num, index, data);
+     *(data + index) = num;
 }
