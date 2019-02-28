@@ -1,7 +1,30 @@
-#include "deformable_conv2d.h"
+//#include "deformable_conv2d.h"
 // beware that the *cuh can only be referenced in the .cu or .cuh files, I put these two header into the .h file at first and it spend me a lot time to find this bug
+#include <ATen/ATen.h>
+#include <ATen/cuda/CUDAContext.h>
+
+#include <THC/THC.h>
 #include <THC/THCAtomics.cuh>
 #include <THC/THCDeviceUtils.cuh>
+#include <vector>
+
+typedef std::vector<int> TShape;
+
+inline int ProdShape(const TShape &shape, int start, int end) {
+    int res = 1;
+    for(int i=start; i<end; i++) {
+        res*=shape[i];
+    }
+    return res;
+}
+
+inline TShape SubVector(const TShape &shape, int start, int end) {
+    TShape res;
+    for(int i=start;i<end;i++){
+        res.push_back(shape[i]);
+    }
+    return res;
+}
 
 #define CUDA_KERNEL_LOOP(i, n)                          \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x;   \
@@ -345,32 +368,6 @@ __global__ void setOneKernel(const int n, float* result_data){
         }
     }
 
-void deformable_col2im::operator()(cudaStream_t stream,
-    const float* data_col, const float* data_offset, const float* data_mask,
-    const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
-    const TShape& pad, const TShape& stride,
-    const TShape& dilation, const int32_t deformable_group,
-    float* grad_im){
-        int  num_spatial_axes = kernel_shape.size();
-        int  im_size = ProdShape(im_shape, 1, im_shape.size());
-        int  channel_per_deformable_group = im_shape[1] / deformable_group;
-        int  num_kernels = ProdShape(col_shape, 0, col_shape.size());
-          switch (num_spatial_axes) {
-          case 2:
-                DeformableConv2DCol2ImKernel
-                <<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS, 0, stream>>>(
-                num_kernels, data_col, data_offset, data_mask, im_shape[1], im_shape[2], im_shape[3],
-                kernel_shape[0], kernel_shape[1], pad[0], pad[1], stride[0], stride[1],
-                dilation[0], dilation[1], channel_per_deformable_group,
-                col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im);
-            break;
-          default:
-            cudaError_t err = cudaGetLastError();
-            printf("error in DeformableConv2DIm2ColKernel: %s\n", cudaGetErrorString(err));
-          }
-
-}
-
 void deformable_im2col(cudaStream_t stream,
     const float* data_im, const float* data_offset, const float* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
@@ -405,7 +402,35 @@ void deformable_im2col(cudaStream_t stream,
 
 }
 
-void deformable_col2im_coord::operator()(cudaStream_t stream,
+void deformable_col2im(cudaStream_t stream,
+    const float* data_col, const float* data_offset, const float* data_mask,
+    const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+    const TShape& pad, const TShape& stride,
+    const TShape& dilation, const int32_t deformable_group,
+    float* grad_im){
+        int  num_spatial_axes = kernel_shape.size();
+        int  im_size = ProdShape(im_shape, 1, im_shape.size());
+        int  channel_per_deformable_group = im_shape[1] / deformable_group;
+        int  num_kernels = ProdShape(col_shape, 0, col_shape.size());
+          switch (num_spatial_axes) {
+          case 2:
+                DeformableConv2DCol2ImKernel
+                <<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS, 0, stream>>>(
+                num_kernels, data_col, data_offset, data_mask, im_shape[1], im_shape[2], im_shape[3],
+                kernel_shape[0], kernel_shape[1], pad[0], pad[1], stride[0], stride[1],
+                dilation[0], dilation[1], channel_per_deformable_group,
+                col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im);
+            break;
+          default:
+            cudaError_t err = cudaGetLastError();
+            printf("error in DeformableConv2DIm2ColKernel: %s\n", cudaGetErrorString(err));
+          }
+
+}
+
+
+
+void deformable_col2im_coord(cudaStream_t stream,
     const float* data_col, const float* data_im, const float* data_offset, const float* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
@@ -430,23 +455,23 @@ void deformable_col2im_coord::operator()(cudaStream_t stream,
     }
 }
 
-void SwapAxis::operator()(cudaStream_t stream, float* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
+void SwapAxis(cudaStream_t stream, float* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
     return;
 }
 
-void setZero::operator()(cudaStream_t stream, int n, float* result_data){
+void setZero(cudaStream_t stream, int n, float* result_data){
     setZeroKernel <<< GET_BLOCKS(n), CUDA_NUM_THREADS, 0, stream >>>(n, result_data);
 }
 
-void setOne::operator()(cudaStream_t stream, int n, float* result_data){
+void setOne(cudaStream_t stream, int n, float* result_data){
     setOneKernel <<< GET_BLOCKS(n), CUDA_NUM_THREADS, 0, stream >>>(n, result_data);
 }
 
-void pureAddTo::operator()(cudaStream_t stream, const int n, float* result_data, const float* right_data){
+void pureAddTo(cudaStream_t stream, const int n, float* result_data, const float* right_data){
     pureAddToKernel<<< GET_BLOCKS(n), CUDA_NUM_THREADS, 0, stream  >>>(n, result_data, right_data);
 }
 
-void setNumAtIndex::operator()(cudaStream_t stream,  float num, int index, float* data){
+void setNumAtIndex(cudaStream_t stream,  float num, int index, float* data){
 //     *(data + index) = num;
 }
 

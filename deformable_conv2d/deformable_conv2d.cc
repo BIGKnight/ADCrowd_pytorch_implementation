@@ -1,12 +1,65 @@
 #include <torch/extension.h>
-#include "deformable_conv2d.h"
+#include <THC/THC.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
 extern THCState *state;
-
+#include <vector>
+typedef std::vector<int> TShape;
 // NOTE: AT_ASSERT has become AT_CHECK on master after 0.4.
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
+inline int ProdShape(const TShape &shape, int start, int end) {
+    int res = 1;
+    for(int i=start; i<end; i++) {
+        res*=shape[i];
+    }
+    return res;
+}
+
+inline TShape SubVector(const TShape &shape, int start, int end) {
+    TShape res;
+    for(int i=start;i<end;i++){
+        res.push_back(shape[i]);
+    }
+    return res;
+}
+
+#ifndef FUNCTION_DECLARE
+#define FUNCTION_DECLARE
+
+    void deformable_im2col(cudaStream_t stream,
+         const float* data_im, const float* data_offset, const float* data_mask,
+         const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+         const TShape& pad, const TShape& stride, const TShape& dilation,
+         const int32_t deformable_group, float* data_col);
+
+    void deformable_col2im(cudaStream_t stream,
+            const float* data_col, const float* data_offset, const float* data_mask,
+            const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+            const TShape& pad, const TShape& stride,
+            const TShape& dilation, const int32_t deformable_group,
+            float* grad_im);
+
+    void deformable_col2im_coord(cudaStream_t stream,
+            const float* data_col, const float* data_im, const float* data_offset, const float* data_mask,
+            const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+            const TShape& pad, const TShape& stride,
+            const TShape& dilation, const int32_t deformable_group,
+            float* grad_offset, float* grad_mask);
+
+    void setZero(cudaStream_t stream, int n, float* result_data);
+
+    void setOne(cudaStream_t stream, int n, float* result_data);
+
+    void pureAddTo(cudaStream_t stream, const int n, float* result_data, const float* right_data);
+
+    void setNumAtIndex(cudaStream_t stream,  float num, int index, float* data);
+
+    void SwapAxis(cudaStream_t stream, float* input_data, const TShape& origin_shape, const int axis_x, const int axis_y);
+
+#endif
 
 at::Tensor deformable_conv2d_forward(
     at::Tensor input,
@@ -114,7 +167,7 @@ at::Tensor deformable_conv2d_forward(
             auto col_buffer_ptr_ptr = &col_buffer_ptr;
             auto output_instance_ptr_ptr = &output_instance_ptr;
             THCudaBlas_SgemmBatched(state, 'n', 'n', M, N, K, 1.0f, (const float**)weight_ptr_ptr, M, (const float**)col_buffer_ptr_ptr, K, 1.0f, output_instance_ptr_ptr, M, group_);
-//          SwapAxis<Device, T>()(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
+//          SwapAxis<Device, T>(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
     }
     return output;
 }
@@ -226,7 +279,7 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     for(int n = 0;n < num_ / im2col_step_ ;++n){
         auto out_grad_instance_ptr = out_grad_ptr + n * group_ * K * N;
         THCudaBlas_SgemmBatched(state, 't', 'n', M, N, K, 1.0f, (const float**)(&weight_ptr), M, (const float**)(&out_grad_instance_ptr), N, 1.0f, &col_buffer_ptr, M, group_);
-        deformable_col2im_coord()(
+        deformable_col2im_coord(
                 THCState_getCurrentStream(state),
                 col_buffer_ptr,
                 input_ptr + n * im2col_step_ * input_dim_,
@@ -242,7 +295,7 @@ std::vector<at::Tensor> deformable_conv2d_backward(
                 grad_offset_ptr + n * im2col_step_ * input_offset_dim_,
                 grad_mask_ptr + n * im2col_step_ * input_mask_dim_);
 
-        deformable_col2im()(
+        deformable_col2im(
                 THCState_getCurrentStream(state),
                 col_buffer_ptr,
                 offset_ptr + n * im2col_step_ * input_offset_dim_,
@@ -273,7 +326,7 @@ std::vector<at::Tensor> deformable_conv2d_backward(
             THCudaBlas_SgemmBatched(state, 'n', 't', K, M, N, 1.0f, (const float**)(&out_grad_instance_ptr), K, (const float**)(&col_buffer_ptr), N, 1.0f, &grad_weight_ptr, K, group_);
         else{
             THCudaBlas_SgemmBatched(state, 'n', 't', K, M, N, 1.0f, (const float**)(&out_grad_instance_ptr), K, (const float**)(&col_buffer_ptr), N, 1.0f, &grad_weight_temp_ptr, K, group_);
-            pureAddTo()(THCState_getCurrentStream(state), K * M, grad_weight_ptr, grad_weight_temp_ptr);
+            pureAddTo(THCState_getCurrentStream(state), K * M, grad_weight_ptr, grad_weight_temp_ptr);
         }
 
     }
@@ -281,6 +334,6 @@ std::vector<at::Tensor> deformable_conv2d_backward(
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("deformable_conv2d_forward", &deformable_conv2d_forward, "deformable_conv2d forward (CUDA)");
-  m.def("deformable_conv2d_backward", &deformable_conv2d_backward, "deformable_conv2d backward (CUDA)");
+  m.def("forward", &deformable_conv2d_forward, "deformable_conv2d forward (CUDA)");
+  m.def("backward", &deformable_conv2d_backward, "deformable_conv2d backward (CUDA)");
 }

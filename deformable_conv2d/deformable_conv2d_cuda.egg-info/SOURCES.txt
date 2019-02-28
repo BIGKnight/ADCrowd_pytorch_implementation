@@ -1,7 +1,0 @@
-deformable_conv2d.cc
-deformable_conv2d_cuda.cu
-setup.py
-deformable_conv2d_cuda.egg-info/PKG-INFO
-deformable_conv2d_cuda.egg-info/SOURCES.txt
-deformable_conv2d_cuda.egg-info/dependency_links.txt
-deformable_conv2d_cuda.egg-info/top_level.txt
