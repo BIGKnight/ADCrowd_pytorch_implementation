@@ -67,11 +67,11 @@ class DeformableConv2DLayer(Module):
     def __init__(self,
                  stride_h, stride_w,
                  pad_h, pad_w,
-                 dilation_h=1, dilation_w=1,
-                 num_groups=1,
-                 deformable_groups=1,
-                 im2col_step=1,
-                 no_bias=True,
+                 dilation_h, dilation_w,
+                 num_groups,
+                 deformable_groups,
+                 im2col_step,
+                 no_bias
                  ):
         super(DeformableConv2DLayer, self).__init__()
         self.stride_h = stride_h
