@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 extern THCState *state;
 #include <vector>
+#include <stdio.h>
 typedef std::vector<int> TShape;
 // NOTE: AT_ASSERT has become AT_CHECK on master after 0.4.
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
@@ -68,14 +69,14 @@ at::Tensor deformable_conv2d_forward(
     at::Tensor mask,
     int stride_h,
     int stride_w,
-    int num_groups,
-    int deformable_groups,
-    int im2col_step,
-    bool no_bias,
     int pad_h,
     int pad_w,
     int dilation_h,
-    int dilation_w
+    int dilation_w,
+    int num_groups,
+    int deformable_groups,
+    int im2col_step,
+    bool no_bias
 ){
     AT_ASSERTM(input.type().is_cuda(), "input must be a CUDA tensor");
     AT_ASSERTM(filter.type().is_cuda(), "filter must be a CUDA tensor");
@@ -162,11 +163,22 @@ at::Tensor deformable_conv2d_forward(
             deformable_groups,
             col_buffer_ptr
             );
-            auto output_instance_ptr = output_ptr + (n * group_ * M  * N);
-            auto weight_ptr_ptr = &weight_ptr;
-            auto col_buffer_ptr_ptr = &col_buffer_ptr;
-            auto output_instance_ptr_ptr = &output_instance_ptr;
-            THCudaBlas_SgemmBatched(state, 'n', 'n', M, N, K, 1.0f, (const float**)weight_ptr_ptr, M, (const float**)col_buffer_ptr_ptr, K, 1.0f, output_instance_ptr_ptr, M, group_);
+            for(int g = 0; g < group_;g++){
+                auto output_instance_ptr = output_ptr + (n * group_ * M  * N) + g * M * N; //{num_ / im2col_step_, group_, M, N}
+                auto weight_tmp_ptr = weight_ptr + g * M * K;
+                auto col_buffer_tmp_ptr = col_buffer_ptr + g * K * N;
+//      这里0.0f我一开始设置为1.0f, 这个其实叫做主机指针或者设备指针, 只需要计算矩阵乘法时命 β = 0.0f
+//    两个“是否需要对输入矩阵 A、B 进行转置”的参数，这是 cuBLAS 库难点之一。简单地说，cuBLAS 中关于矩阵的存储方式与 fortran、MATLAB类似，采用的是列优先，而非 C / C++ 中的行优先。
+//     所以，当我们将 C / C++ 中行优先形式保存的数组 A 输入到cuBLAS中时，会被cuBLAS理解为列优先存储。
+//   这时如果保持 A 的行、列数不变，则矩阵 A 会发生重排（过程类似 MATLAB 中的 reshape(A, [size(A,2), size(A, 1)])），
+//   除非同时交换 A 的行、列数，此时结果才恰好等于 A 的转置，在一般的调用过程中正是利用了这一条性质。
+//   yu是 cuBLAS 事先利用这个参数询问，是否需要将矩阵 A、B 进行转置。在这里，我尝试了大量的例子，结合图形来说明cuBLAS中对数组的操作。
+//（正确过程）这一般教程上的调用过程。利用了性质 A B = (BT AT)T 来计算矩阵乘积。如前文所述，我们把一个行优先的矩阵看作列优先的同时，
+//交换其行、列数，其结果等价于得到该矩阵的转置，反之列优先转行优先的原理相同。所以我们可以在调用该函数的时候，先放入 B 并交换参数 k 和 n 的位置，
+//再放入 A 并交换参数 m 和 k 的位置，这样就顺理成章得到了结果的 C （所有转换由cuBLAS完成，不需要手工调整数组），注意以下调用语句中红色的部分。
+// 具体见https://www.cnblogs.com/cuancuancuanhao/p/7763256.html
+                THCudaBlas_Sgemm(state, 'n', 'n', N, M, K, 1.0f, col_buffer_tmp_ptr, N, weight_tmp_ptr, K, 0.0f, output_instance_ptr, N);
+            }
 //          SwapAxis<Device, T>(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
     }
     return output;
@@ -180,14 +192,14 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     at::Tensor out_grad,
     int stride_h,
     int stride_w,
+    int pad_h,
+    int pad_w,
+    int dilation_h,
+    int dilation_w,
     int num_groups,
     int deformable_groups,
     int im2col_step,
-    bool no_bias,
-    int padding_h,
-    int padding_w,
-    int dilation_h,
-    int dilation_w
+    bool no_bias
 ){
     AT_ASSERTM(input.type().is_cuda(), "input must be a CUDA tensor");
     AT_ASSERTM(filter.type().is_cuda(), "filter must be a CUDA tensor");
@@ -201,8 +213,8 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     int kernel_h = filter.size(2);
     int kernel_w = filter.size(3);
 
-    const int height_out = (height + 2 * padding_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-    const int width_out = (width + 2 * padding_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+    const int height_out = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
+    const int width_out = (width + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
 
     AT_ASSERTM(height_out==out_grad.size(2) && width_out == out_grad.size(3),
         "the calculated out shape won't match the out_grad_shape:(%d x %d vs %d x %d)",
@@ -273,8 +285,8 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     stride_shape.push_back(stride_w);
     dilation_shape.push_back(dilation_h);
     dilation_shape.push_back(dilation_w);
-    padding_shape.push_back(padding_h);
-    padding_shape.push_back(padding_w);
+    padding_shape.push_back(pad_h);
+    padding_shape.push_back(pad_w);
 
     for(int n = 0;n < num_ / im2col_step_ ;++n){
         auto out_grad_instance_ptr = out_grad_ptr + n * group_ * K * N;
