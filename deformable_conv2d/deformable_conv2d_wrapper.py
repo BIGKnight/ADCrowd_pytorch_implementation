@@ -38,7 +38,7 @@ class DeformableConv2DFunction(Function):
             ctx.deformable_groups,
             ctx.im2col_step,
             ctx.no_bias)
-        print(output)
+        # print(output)
         ctx.save_for_backward(input, filter, offset, mask)
         return output
 

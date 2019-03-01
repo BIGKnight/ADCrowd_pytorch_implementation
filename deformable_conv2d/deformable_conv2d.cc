@@ -290,7 +290,19 @@ std::vector<at::Tensor> deformable_conv2d_backward(
 
     for(int n = 0;n < num_ / im2col_step_ ;++n){
         auto out_grad_instance_ptr = out_grad_ptr + n * group_ * K * N;
-        THCudaBlas_SgemmBatched(state, 't', 'n', M, N, K, 1.0f, (const float**)(&weight_ptr), M, (const float**)(&out_grad_instance_ptr), N, 1.0f, &col_buffer_ptr, M, group_);
+        for(int g = 0;g < group_;g++){
+            auto weight_tmp_ptr = weight_ptr + g * M * K;
+            auto out_grad_instance_tmp_ptr = out_grad_instance_ptr + g * K * N;
+            auto col_buffer_tmp_ptr = col_buffer_ptr + g * M * N;
+            THCudaBlas_Sgemm(state,
+            'n', 't',
+            N, M, K,
+            1.0f,
+            out_grad_instance_tmp_ptr, N,
+            weight_tmp_ptr, K,
+            0.0f,
+            col_buffer_tmp_ptr, N);
+        }
         deformable_col2im_coord(
                 THCState_getCurrentStream(state),
                 col_buffer_ptr,
@@ -334,13 +346,19 @@ std::vector<at::Tensor> deformable_conv2d_backward(
                 dilation_shape,
                 deformable_groups,
                 col_buffer_ptr);
-        if(0==n)
-            THCudaBlas_SgemmBatched(state, 'n', 't', K, M, N, 1.0f, (const float**)(&out_grad_instance_ptr), K, (const float**)(&col_buffer_ptr), N, 1.0f, &grad_weight_ptr, K, group_);
-        else{
-            THCudaBlas_SgemmBatched(state, 'n', 't', K, M, N, 1.0f, (const float**)(&out_grad_instance_ptr), K, (const float**)(&col_buffer_ptr), N, 1.0f, &grad_weight_temp_ptr, K, group_);
-            pureAddTo(THCState_getCurrentStream(state), K * M, grad_weight_ptr, grad_weight_temp_ptr);
-        }
-
+            for(int g = 0;g < group_;g++){
+                auto grad_weight_tmp_ptr = grad_weight_ptr + g * M * K;
+                auto out_grad_instance_tmp_ptr = out_grad_instance_ptr + g * K * N;
+                auto col_buffer_tmp_ptr = col_buffer_ptr + g * M * N;
+                THCudaBlas_Sgemm(state,
+                't', 'n',
+                M, K, N,
+                1.0f,
+                col_buffer_tmp_ptr, M,
+                out_grad_instance_tmp_ptr, N,
+                1.0f,
+                grad_weight_tmp_ptr, M);
+            }
     }
     return {grad_input, grad_weight, grad_offset, grad_mask};
 }
