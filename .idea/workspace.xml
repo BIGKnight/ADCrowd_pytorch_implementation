@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="3f47ab3a-cc4d-44c7-903a-aa034552caf7" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/DME_deformable.py" beforeDir="false" afterPath="$PROJECT_DIR$/DME_deformable.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deformable_conv2d/deformable_conv2d_wrapper.py" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d/deformable_conv2d_wrapper.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -99,7 +97,7 @@
           <entry key="cu" value="462" />
           <entry key="dummy" value="8" />
           <entry key="h" value="1487" />
-          <entry key="py" value="4131" />
+          <entry key="py" value="4830" />
           <entry key="sh" value="163" />
         </counts>
       </usages-collector>
@@ -108,7 +106,7 @@
           <entry key="Bash" value="163" />
           <entry key="C++" value="3244" />
           <entry key="PLAIN_TEXT" value="8" />
-          <entry key="Python" value="4131" />
+          <entry key="Python" value="4830" />
         </counts>
       </usages-collector>
     </session>
@@ -141,8 +139,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="315">
-              <caret line="21" column="16" lean-forward="true" selection-start-line="21" selection-start-column="16" selection-end-line="21" selection-end-column="16" />
+            <state relative-caret-position="225">
+              <caret line="15" column="46" selection-start-line="15" selection-start-column="39" selection-end-line="15" selection-end-column="46" />
               <folding>
                 <element signature="e#210#222#0" expanded="true" />
               </folding>
@@ -153,14 +151,15 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/DME_deformable.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1062">
-              <caret line="75" selection-start-line="75" selection-end-line="75" />
+            <state relative-caret-position="642">
+              <caret line="104" column="8" selection-start-line="104" selection-start-column="8" selection-end-line="105" selection-end-column="30" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
-                <marker date="1551439402674" expanded="true" signature="154:870" ph="..." />
-                <marker date="1551439402674" expanded="true" signature="913:2593" ph="..." />
-                <marker date="1551439402674" expanded="true" signature="2617:2618" ph="..." />
-                <marker date="1551439402674" expanded="true" signature="2617:2622" ph="..." />
+                <marker date="1551442931333" expanded="true" signature="113:115" ph="..." />
+                <marker date="1551442931333" expanded="true" signature="154:870" ph="..." />
+                <marker date="1551442931333" expanded="true" signature="913:3388" ph="..." />
+                <marker date="1551442931333" expanded="true" signature="3412:3413" ph="..." />
+                <marker date="1551442931333" expanded="true" signature="3412:3417" ph="..." />
               </folding>
             </state>
           </provider>
@@ -245,10 +244,10 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="2078" />
-    <option name="y" value="194" />
+    <option name="x" value="1985" />
+    <option name="y" value="-4" />
     <option name="width" value="1855" />
-    <option name="height" value="1056" />
+    <option name="height" value="1084" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -276,7 +275,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/test.py" />
+    <property name="last_opened_file_path" value="$USER_HOME$/PycharmProjects/ADCrowdNet" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="PyConsoleConfigurable.Python Console" />
@@ -383,7 +382,7 @@
     <frame x="1985" y="-4" width="1855" height="1084" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.28468767" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.28468767" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -396,7 +395,7 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" />
-      <window_info anchor="bottom" id="Terminal" order="10" visible="true" weight="0.16422594" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="10" visible="true" weight="0.16422594" />
       <window_info anchor="bottom" id="Version Control" order="11" weight="0.3294979" />
       <window_info anchor="bottom" id="Python Console" order="12" weight="0.3294979" />
       <window_info anchor="bottom" id="Thumbnails" order="13" weight="0.3294979" />
@@ -517,8 +516,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="21" column="16" lean-forward="true" selection-start-line="21" selection-start-column="16" selection-end-line="21" selection-end-column="16" />
+        <state relative-caret-position="225">
+          <caret line="15" column="46" selection-start-line="15" selection-start-column="39" selection-end-line="15" selection-end-column="46" />
           <folding>
             <element signature="e#210#222#0" expanded="true" />
           </folding>
@@ -527,14 +526,15 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/DME_deformable.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1062">
-          <caret line="75" selection-start-line="75" selection-end-line="75" />
+        <state relative-caret-position="642">
+          <caret line="104" column="8" selection-start-line="104" selection-start-column="8" selection-end-line="105" selection-end-column="30" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
-            <marker date="1551439402674" expanded="true" signature="154:870" ph="..." />
-            <marker date="1551439402674" expanded="true" signature="913:2593" ph="..." />
-            <marker date="1551439402674" expanded="true" signature="2617:2618" ph="..." />
-            <marker date="1551439402674" expanded="true" signature="2617:2622" ph="..." />
+            <marker date="1551442931333" expanded="true" signature="113:115" ph="..." />
+            <marker date="1551442931333" expanded="true" signature="154:870" ph="..." />
+            <marker date="1551442931333" expanded="true" signature="913:3388" ph="..." />
+            <marker date="1551442931333" expanded="true" signature="3412:3413" ph="..." />
+            <marker date="1551442931333" expanded="true" signature="3412:3417" ph="..." />
           </folding>
         </state>
       </provider>

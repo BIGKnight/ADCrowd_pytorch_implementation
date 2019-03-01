@@ -28,44 +28,63 @@ class BasicDeformableConv2D(nn.Module):
 
 
 class DeformableInceptionModule(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, **kwargs):
         super(DeformableInceptionModule, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         # Deformable Layer
         self.deformable_conv_part_1 = BasicDeformableConv2D(1, 1, 1, 1)
         self.deformable_conv_part_2 = BasicDeformableConv2D(1, 1, 2, 2)
         self.deformable_conv_part_3 = BasicDeformableConv2D(1, 1, 3, 3)
-        # Deformable parameters
-        self.deformable_conv_part_1_filter = None
+        # Deformable parameters generators
+        self.offset_generator_1 = nn.Conv2d(in_channels, 3 * 3 * 2, kernel_size=3, padding=1)
+        self.offset_generator_2 = nn.Conv2d(in_channels, 5 * 5 * 2, kernel_size=5, padding=2)
+        self.offset_generator_3 = nn.Conv2d(in_channels, 7 * 7 * 2, kernel_size=7, padding=3)
+        self.mask_generator_1 = nn.Conv2d(in_channels, 3 * 3, kernel_size=3, padding=1)
+        self.mask_generator_2 = nn.Conv2d(in_channels, 5 * 5, kernel_size=5, padding=2)
+        self.mask_generator_3 = nn.Conv2d(in_channels, 7 * 7, kernel_size=7, padding=3)
         self.deformable_conv_part_2_filter = None
         self.deformable_conv_part_3_filter = None
-        self.deformable_conv_part_1_offset = None
-        self.deformable_conv_part_2_offset = None
-        self.deformable_conv_part_3_offset = None
-        self.deformable_conv_part_1_mask = None
-        self.deformable_conv_part_2_mask = None
-        self.deformable_conv_part_3_mask = None
+        # filter initialization(Xaviar)
+        self.filter_1 = nn.init.xavier_uniform_(
+            torch.zeros(out_channels, in_channels, 3, 3, dtype=torch.float32),
+            gain=1
+        )
+        self.filter_2 = nn.init.xavier_uniform_(
+            torch.zeros(out_channels, in_channels, 5, 5, dtype=torch.float32),
+            gain=1
+        )
+        self.filter_3 = nn.init.xavier_uniform_(
+            torch.zeros(out_channels, in_channels, 7, 7, dtype=torch.float32),
+            gain=1
+        )
 
     def forward(self, x):
+        # generate the offset and mask
+        offset_1 = self.offset_generator_1(x)
+        offset_2 = self.offset_generator_2(x)
+        offset_3 = self.offset_generator_3(x)
+        mask_1 = self.mask_generator_1(x)
+        mask_2 = self.mask_generator_2(x)
+        mask_3 = self.mask_generator_3(x)
+        # do the deformable convolution
         part_1 = self.deformable_conv_part_1.forward(
             x,
-            self.deformable_conv_part_1_filter,
-            self.deformable_conv_part_1_offset,
-            self.deformable_conv_part_1_mask
+            self.filter_1,
+            offset_1,
+            mask_1
         )
         part_2 = self.deformable_conv_part_2.forward(
             x,
-            self.deformable_conv_part_2_filter,
-            self.deformable_conv_part_2_offset,
-            self.deformable_conv_part_2_mask
+            self.filter_2,
+            offset_2,
+            mask_2
         )
         part_3 = self.deformable_conv_part_3.forward(
             x,
-            self.deformable_conv_part_3_filter,
-            self.deformable_conv_part_3_offset,
-            self.deformable_conv_part_3_mask
+            self.filter_3,
+            offset_3,
+            mask_3
         )
+        # concat
         output = torch.cat((part_1, part_2, part_3), dim=1)
         return output
 
@@ -73,6 +92,17 @@ class DeformableInceptionModule(nn.Module):
 class DMENet(nn.Module):
     def __init__(self):
         super(DMENet, self).__init__()
+        self.front_end = None
+        self.back_end = nn.Sequential(
+            DeformableInceptionModule(512, 256),
+            nn.Conv2d(256 * 3, 256, kernel_size=1),
+            DeformableInceptionModule(256, 128),
+            nn.Conv2d(128 * 3, 128, kernel_size=1),
+            DeformableInceptionModule(128, 64),
+            nn.Conv2d(64 * 3, 1, kernel_size=1)
+        )
 
     def forward(self, x):
-        return
+        features = self.front_end(x)
+        out = self.back_end(features)
+        return out
