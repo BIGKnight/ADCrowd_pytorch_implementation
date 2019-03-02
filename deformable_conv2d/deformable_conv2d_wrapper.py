@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch.autograd import Function
 from torch.nn import Module
 # our module
@@ -65,8 +66,11 @@ class DeformableConv2DFunction(Function):
 
 class DeformableConv2DLayer(Module):
     def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel__size,
                  stride_h, stride_w,
-                 pad_h, pad_w,
+                 padding,
                  dilation_h, dilation_w,
                  num_groups,
                  deformable_groups,
@@ -76,24 +80,34 @@ class DeformableConv2DLayer(Module):
         super(DeformableConv2DLayer, self).__init__()
         self.stride_h = stride_h
         self.stride_w = stride_w
-        self.pad_h = pad_h
-        self.pad_w = pad_w
+        self.pad_h = padding
+        self.pad_w = padding
         self.dilation_h = dilation_h
         self.dilation_w = dilation_w
         self.num_groups = num_groups
         self.deformable_groups = deformable_groups
         self.im2col_step = im2col_step
         self.no_bias = no_bias
+        self.weight = nn.Parameter(
+            torch.zeros(
+                out_channels,
+                in_channels,
+                kernel__size,
+                kernel__size,
+                dtype=torch.float32
+            )
+        )
+        nn.init.xavier_uniform_(self.weight, gain=1)
+
 
 # apply() takes no keyword arguments
     def forward(self,
                 inputs,
-                filter,
                 offset,
                 mask):
         return DeformableConv2DFunction.apply(
             inputs,
-            filter,
+            self.weight,
             offset,
             mask,
             self.stride_h, self.stride_w,
