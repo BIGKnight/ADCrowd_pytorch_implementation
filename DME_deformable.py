@@ -79,7 +79,7 @@ class CONV2D1X1(nn.Module):
     def __init__(self, in_channels, out_channels, **kwargs):
         super(CONV2D1X1, self).__init__()
         self.model = nn.Conv2d(in_channels, out_channels, kernel_size=1, **kwargs)
-        nn.init.xavier_uniform_(self.model, gain=1)
+        nn.init.xavier_uniform_(self.model.weight, gain=1)
 
     def forward(self, x):
         return self.model(x)

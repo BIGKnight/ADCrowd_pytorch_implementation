@@ -372,7 +372,7 @@ void deformable_im2col(cudaStream_t stream,
     const float* data_im, const float* data_offset, const float* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride, const TShape& dilation,
-    const int32_t deformable_group, float* data_col) {
+    const int deformable_group, float* data_col) {
         int  num_spatial_axes = kernel_shape.size();
         int  channel_per_deformable_group = im_shape[1] / deformable_group;
         int  num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size());
@@ -406,7 +406,7 @@ void deformable_col2im(cudaStream_t stream,
     const float* data_col, const float* data_offset, const float* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
-    const TShape& dilation, const int32_t deformable_group,
+    const TShape& dilation, const int deformable_group,
     float* grad_im){
         int  num_spatial_axes = kernel_shape.size();
         int  im_size = ProdShape(im_shape, 1, im_shape.size());
@@ -434,7 +434,7 @@ void deformable_col2im_coord(cudaStream_t stream,
     const float* data_col, const float* data_im, const float* data_offset, const float* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
-    const TShape& dilation, const int32_t deformable_group,
+    const TShape& dilation, const int deformable_group,
     float* grad_offset, float* grad_mask) {
       int  num_spatial_axes = kernel_shape.size();
       int  num_kernels = col_shape[1] * col_shape[2] * col_shape[3] * 2 * kernel_shape[0] * kernel_shape[1] * deformable_group;

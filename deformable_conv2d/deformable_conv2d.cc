@@ -34,20 +34,20 @@ inline TShape SubVector(const TShape &shape, int start, int end) {
          const float* data_im, const float* data_offset, const float* data_mask,
          const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
          const TShape& pad, const TShape& stride, const TShape& dilation,
-         const int32_t deformable_group, float* data_col);
+         const int deformable_group, float* data_col);
 
     void deformable_col2im(cudaStream_t stream,
             const float* data_col, const float* data_offset, const float* data_mask,
             const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
             const TShape& pad, const TShape& stride,
-            const TShape& dilation, const int32_t deformable_group,
+            const TShape& dilation, const int deformable_group,
             float* grad_im);
 
     void deformable_col2im_coord(cudaStream_t stream,
             const float* data_col, const float* data_im, const float* data_offset, const float* data_mask,
             const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
             const TShape& pad, const TShape& stride,
-            const TShape& dilation, const int32_t deformable_group,
+            const TShape& dilation, const int deformable_group,
             float* grad_offset, float* grad_mask);
 
     void setZero(cudaStream_t stream, int n, float* result_data);
@@ -92,7 +92,7 @@ at::Tensor deformable_conv2d_forward(
     const int width_out = (width + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
     const int num_axes = 4;
     bool is_1x1_ = true;
-    for (int32_t i = 2; i < num_axes; ++i) {
+    for (int i = 2; i < num_axes; ++i) {
             is_1x1_ &= filter.size(i) == 1; // only judge by the filter's shape
             if (!is_1x1_) break;
     }
@@ -110,9 +110,9 @@ at::Tensor deformable_conv2d_forward(
     int input_offset_dim_ = offset.size(1) * offset.size(2) * offset.size(3); // 18 * H * W
     int input_mask_dim_ =  mask.size(1) * mask.size(2) * mask.size(3); // 9 * H * W
 
-    int32_t M = conv_out_channels_ / group_; // filter的数量
-    int32_t N = im2col_step_ * conv_out_spatial_dim_;
-    int32_t K = kernel_dim_;
+    int M = conv_out_channels_ / group_; // filter的数量
+    int N = im2col_step_ * conv_out_spatial_dim_;
+    int K = kernel_dim_;
 
     auto col_buffer = at::empty({conv_in_channels_ * filter.size(2) * filter.size(3), im2col_step_, conv_out_spatial_dim_}, input.options());
     auto output = at::empty({num_, conv_out_channels_, height_out, width_out}, input.options());
@@ -219,9 +219,9 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     AT_ASSERTM(height_out==out_grad.size(2) && width_out == out_grad.size(3),
         "the calculated out shape won't match the out_grad_shape:(%d x %d vs %d x %d)",
             height_out, width_out, out_grad.size(2), out_grad.size(3));
-    const int32_t num_axes = 4;
+    const int num_axes = 4;
     bool is_1x1_ = true;
-    for (int32_t i = 2; i < num_axes; ++i) {
+    for (int i = 2; i < num_axes; ++i) {
             is_1x1_ &= filter.size(i) == 1; // only judge by the filter's shape
             if (!is_1x1_) break;
     }
@@ -260,9 +260,9 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     auto grad_mask_ptr = grad_mask.data<float>();
     auto col_buffer_ptr = col_buffer.data<float>();
 
-    int32_t M = kernel_dim_;
-    int32_t N = im2col_step_ * conv_out_spatial_dim_;
-    int32_t K = conv_out_channels_ / group_;
+    int M = kernel_dim_;
+    int N = im2col_step_ * conv_out_spatial_dim_;
+    int K = conv_out_channels_ / group_;
 
     TShape input_shape;
     TShape filter_shape;
@@ -298,10 +298,10 @@ std::vector<at::Tensor> deformable_conv2d_backward(
             'n', 't',
             N, M, K,
             1.0f,
-            out_grad_instance_tmp_ptr, N,
-            weight_tmp_ptr, K,
+            out_grad_instance_ptr, N,
+            weight_ptr, M,
             0.0f,
-            col_buffer_tmp_ptr, N);
+            col_buffer_ptr, N);
         }
         deformable_col2im_coord(
                 THCState_getCurrentStream(state),
@@ -354,7 +354,7 @@ std::vector<at::Tensor> deformable_conv2d_backward(
                 't', 'n',
                 M, K, N,
                 1.0f,
-                col_buffer_tmp_ptr, M,
+                col_buffer_tmp_ptr, N,
                 out_grad_instance_tmp_ptr, N,
                 1.0f,
                 grad_weight_tmp_ptr, M);

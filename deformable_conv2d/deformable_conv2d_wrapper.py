@@ -43,13 +43,14 @@ class DeformableConv2DFunction(Function):
         ctx.save_for_backward(input, filter, offset, mask)
         return output
 
+# backward 的返回值个数要和forward的输入个数等同
     @staticmethod
     def backward(ctx, *grad_outputs):
         if len(grad_outputs) != 1:
             print("Wrong output number, check your output")
             return
         input, filter, offset, mask = ctx.saved_tensors
-        return deformable_conv2d_gpu.backward(
+        grad_input, grad_weight, grad_offset, grad_mask = deformable_conv2d_gpu.backward(
             input,
             filter,
             offset,
@@ -62,6 +63,8 @@ class DeformableConv2DFunction(Function):
             ctx.deformable_groups,
             ctx.im2col_step,
             ctx.no_bias)
+        return grad_input, grad_weight, grad_offset, grad_mask, \
+               None, None, None, None, None, None, None, None, None, None
 
 
 class DeformableConv2DLayer(Module):
