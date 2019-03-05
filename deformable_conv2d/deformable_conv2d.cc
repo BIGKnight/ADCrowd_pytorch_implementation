@@ -254,7 +254,6 @@ std::vector<at::Tensor> deformable_conv2d_backward(
     auto out_grad_ptr = out_grad.data<float>();
     auto grad_input_ptr = grad_input.data<float>();
     auto grad_weight_ptr = grad_weight.data<float>();
-    auto grad_weight_temp_ptr = grad_weight_temp.data<float>();
 
     auto grad_offset_ptr = grad_offset.data<float>();
     auto grad_mask_ptr = grad_mask.data<float>();
@@ -298,10 +297,10 @@ std::vector<at::Tensor> deformable_conv2d_backward(
             'n', 't',
             N, M, K,
             1.0f,
-            out_grad_instance_ptr, N,
-            weight_ptr, M,
+            out_grad_instance_tmp_ptr, N,
+            weight_tmp_ptr, M,
             0.0f,
-            col_buffer_ptr, N);
+            col_buffer_tmp_ptr, N);
         }
         deformable_col2im_coord(
                 THCState_getCurrentStream(state),
