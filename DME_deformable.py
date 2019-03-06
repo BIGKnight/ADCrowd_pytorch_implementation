@@ -4,7 +4,6 @@ import torchvision.models as models
 from deformable_conv2d.deformable_conv2d_wrapper import DeformableConv2DLayer
 
 
-
 class BasicDeformableConv2D(nn.Module):
     def __init__(self,
                  in_channels,
@@ -90,7 +89,7 @@ class DMENet(nn.Module):
     def __init__(self):
         super(DMENet, self).__init__()
         # get front end
-        self.front_end = nn.Sequential(*(list(list(models.vgg16(False).children())[0].children())[0:23]))
+        self.front_end = nn.Sequential(*(list(list(models.vgg16(True).children())[0].children())[0:23]))
         # weight initialization
         self.front_end.apply(lambda m: nn.init.xavier_uniform_(m.weight, 1) if isinstance(m, nn.Conv2d) else None)
         # get back end
@@ -102,9 +101,10 @@ class DMENet(nn.Module):
             DeformableInceptionModule(128, 64),
             CONV2D1X1(64 * 3, 1)
         )
+        self.relu = nn.LeakyReLU(0.1)
 
     def forward(self, x):
-        features = self.front_end(x)
+        features = self.front_end(x * 255)
         # if we need any process, code here
         out = self.back_end(features)
         return out
